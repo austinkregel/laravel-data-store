@@ -1,0 +1,35 @@
+{
+    "name" : "kregel/laravel-data-store",
+    "description": "Laravel Data Store",
+    "homepage": "https://github.com/austinkregel/laravel-data-store",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Austin Kregel",
+            "email": "github@austinkregel.com",
+            "homepage": "https://austinkregel.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.0",
+        "laravel/framework": ">=5.5"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kregel\\DataStore\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kregel\\DataStore\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+    }
+}

@@ -35,13 +35,9 @@ class DataStore implements DataStoreContract
     protected $otherTags = [];
 
     /**
-     * Redis constructor.
-     * @param Factory $redisFactory
+     * @const string
      */
-    public function __construct(Factory $redisFactory)
-    {
-        $this->redis = $redisFactory;
-    }
+    public const PACKAGE_TAG = 'kregel.datastore';
 
     /**
      * @param string $model
@@ -49,7 +45,7 @@ class DataStore implements DataStoreContract
      */
     public static function forModel(string $model): DataStoreContract
     {
-        return app(static::class)->model($model);
+        return (new static)->model($model);
     }
 
     /**
@@ -87,11 +83,11 @@ class DataStore implements DataStoreContract
     {
         $key = $this->getKey($key);
 
-        if (!cache()->has($key)) {
+        if (!$this->exists($key)) {
             throw new ModelNotFoundException(sprintf('No query results for the redis key [%s]', $key));
         }
 
-        $value = cache()->get($key);
+        $value = cache($key);
 
         if (empty($value)) {
             return [];
@@ -106,6 +102,10 @@ class DataStore implements DataStoreContract
 
     public function getKey(string $key): string
     {
+        if (starts_with($key, $this->prefix)) {
+            return $key;
+        }
+
         return $this->prefix . '.' . $key;
     }
 
@@ -118,11 +118,11 @@ class DataStore implements DataStoreContract
     {
         $key = $this->getKey($key);
 
-        if (!cache()->has($key)) {
+        if (!$this->exists($key)) {
             throw new ModelNotFoundException(sprintf('No query results for the redis key [%s]', $key));
         }
 
-        $value = cache()->get($key);
+        $value = cache($key);
 
         if (is_array($value)) {
             return Arr::first($value);
@@ -142,16 +142,7 @@ class DataStore implements DataStoreContract
     {
         $key = $this->getKey($key);
 
-        return cache()->tags(array_merge([
-            // Tie the cache to the whole implementation.
-            static::PACKAGE_TAG,
-            // Save the timestamped version of data for both historical reasons, cache breaking reasons.
-            static::PACKAGE_TAG . ':' . Carbon::now()->format('Y-m-d'),
-            // Tie the cache to our model
-            static::PACKAGE_TAG . ':' . $this->model,
-            // Tie the cache to our model and current time.
-            $key,
-        ], $this->otherTags))->rememberForever($key, $callback);
+        return cache()->rememberForever($key, $callback);
     }
 
     /**
@@ -163,16 +154,7 @@ class DataStore implements DataStoreContract
     {
         $key = $this->getKey($key);
 
-        return cache()->tags(array_merge([
-            // Tie the cache to the whole implementation.
-            static::PACKAGE_TAG,
-            // Save the timestamped version of data for both historical reasons, cache breaking reasons.
-            static::PACKAGE_TAG . ':' . Carbon::now()->format('Y-m-d'),
-            // Tie the cache to our model
-            static::PACKAGE_TAG . ':' . $this->model,
-            // Tie the cache to our model and current time.
-            $key,
-        ], $this->otherTags))->has($key);
+        return cache()->has($key);
     }
 
     /**
@@ -184,16 +166,7 @@ class DataStore implements DataStoreContract
     {
         $key = $this->getKey($key);
 
-        cache()->tags(array_merge([
-            // Tie the cache to the whole implementation.
-            static::PACKAGE_TAG,
-            // Save the timestamped version of data for both historical reasons, cache breaking reasons.
-            static::PACKAGE_TAG . ':' . Carbon::now()->format('Y-m-d'),
-            // Tie the cache to our model
-            static::PACKAGE_TAG . ':' . $this->model,
-            // Tie the cache to our model and current time.
-            $key,
-        ], $this->otherTags))->forget($key);
+        cache()->forget($key);
     }
 
     /**
@@ -204,5 +177,19 @@ class DataStore implements DataStoreContract
     public function destroyTags(array $tags): void
     {
         cache()->tags($tags)->flush();
+    }
+
+    public function getTags($key)
+    {
+        return array_merge([
+            // Tie the cache to the whole implementation.
+            static::PACKAGE_TAG,
+            // Save the timestamped version of data for both historical reasons, cache breaking reasons.
+            static::PACKAGE_TAG . ':' . Carbon::now()->format('Y-m-d'),
+            // Tie the cache to our model
+            static::PACKAGE_TAG . ':' . $this->model,
+            // Tie the cache to our model and current time.
+            $key,
+        ], $this->otherTags);
     }
 }

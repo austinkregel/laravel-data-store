@@ -44,17 +44,6 @@ class DataStore implements DataStoreContract
     }
 
     /**
-     * Set the prefix for this store to use
-     * @param string $prefix
-     * @return DataStore
-     */
-    public function usePrefix(string $prefix): DataStoreContract
-    {
-        $this->prefix = $prefix;
-        return $this;
-    }
-
-    /**
      * @param string $model
      * @return DataStore
      */
@@ -79,13 +68,24 @@ class DataStore implements DataStoreContract
     }
 
     /**
+     * Set the prefix for this store to use
+     * @param string $prefix
+     * @return DataStore
+     */
+    public function usePrefix(string $prefix): DataStoreContract
+    {
+        $this->prefix = $prefix;
+        return $this;
+    }
+
+    /**
      * @param string $key
      * @return array
      * @throws ModelNotFoundException
      */
     public function get(string $key): array
     {
-        $key = $this->prefix . $key;
+        $key = $this->getKey($key);
 
         if (!cache()->has($key)) {
             throw new ModelNotFoundException(sprintf('No query results for the redis key [%s]', $key));
@@ -104,6 +104,11 @@ class DataStore implements DataStoreContract
         return $value;
     }
 
+    public function getKey(string $key): string
+    {
+        return $this->prefix . '.' . $key;
+    }
+
     /**
      * Grab the first bit of data of whatever is saved to the key.
      * @param string $key
@@ -111,7 +116,7 @@ class DataStore implements DataStoreContract
      */
     public function first(string $key)
     {
-        $key = $this->prefix . $key;
+        $key = $this->getKey($key);
 
         if (!cache()->has($key)) {
             throw new ModelNotFoundException(sprintf('No query results for the redis key [%s]', $key));
@@ -135,7 +140,9 @@ class DataStore implements DataStoreContract
      */
     public function save(string $key, callable $callback)
     {
-        return cache()->tags([
+        $key = $this->getKey($key);
+
+        return cache()->tags(array_merge([
             // Tie the cache to the whole implementation.
             static::PACKAGE_TAG,
             // Save the timestamped version of data for both historical reasons, cache breaking reasons.
@@ -143,8 +150,8 @@ class DataStore implements DataStoreContract
             // Tie the cache to our model
             static::PACKAGE_TAG . ':' . $this->model,
             // Tie the cache to our model and current time.
-            static::PACKAGE_TAG . ':' . $this->model . '.' . Carbon::now()->format('Y-m-d'),
-        ], $this->otherTags)->put($key, $callback());
+            $key,
+        ], $this->otherTags))->rememberForever($key, $callback);
     }
 
     /**
@@ -154,7 +161,18 @@ class DataStore implements DataStoreContract
      */
     public function exists(string $key): bool
     {
-        return cache()->has($key);
+        $key = $this->getKey($key);
+
+        return cache()->tags(array_merge([
+            // Tie the cache to the whole implementation.
+            static::PACKAGE_TAG,
+            // Save the timestamped version of data for both historical reasons, cache breaking reasons.
+            static::PACKAGE_TAG . ':' . Carbon::now()->format('Y-m-d'),
+            // Tie the cache to our model
+            static::PACKAGE_TAG . ':' . $this->model,
+            // Tie the cache to our model and current time.
+            $key,
+        ], $this->otherTags))->has($key);
     }
 
     /**
@@ -164,7 +182,18 @@ class DataStore implements DataStoreContract
      */
     public function destroy(string $key): void
     {
-        cache()->forget($key);
+        $key = $this->getKey($key);
+
+        cache()->tags(array_merge([
+            // Tie the cache to the whole implementation.
+            static::PACKAGE_TAG,
+            // Save the timestamped version of data for both historical reasons, cache breaking reasons.
+            static::PACKAGE_TAG . ':' . Carbon::now()->format('Y-m-d'),
+            // Tie the cache to our model
+            static::PACKAGE_TAG . ':' . $this->model,
+            // Tie the cache to our model and current time.
+            $key,
+        ], $this->otherTags))->forget($key);
     }
 
     /**

@@ -11,11 +11,6 @@ namespace Kregel\DataStore\Contracts;
 interface DataStoreContract
 {
     /**
-     * @const string
-     */
-    public const PACKAGE_TAG = 'kregel.datastore';
-
-    /**
      * This is the main entry point into the store
      * @param string $model
      * @return DataStoreContract
